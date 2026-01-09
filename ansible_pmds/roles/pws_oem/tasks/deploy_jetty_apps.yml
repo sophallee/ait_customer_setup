@@ -1,0 +1,95 @@
+---
+# ----------------------------
+# Install dependencies for the PWS OEM application
+# ----------------------------
+- name: Deploy Jetty Distribution and Jetty Apps
+  block:
+
+  # ----------------------------
+  # Pre-jetty files copy for transfer
+  # ----------------------------
+  # ----------------------------
+  # Jetty installation
+  # ----------------------------
+  - name: Ensure temporary ansible directory exists
+    file:
+      path: "{{ jetty_tmp_dir }}"
+      state: directory
+      owner: root
+      group: root      
+      mode: '0755'
+
+  # Create the base directory on the target node
+  - name: Ensure jetty base directory exists
+    file:
+      path: "{{ jetty_base_dir }}"
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+
+  ########################################################
+  # Copy and extract the Jetty base distribution onto the target
+  ########################################################
+  - name: Set jetty distribution version from file name
+    set_fact:
+      jetty_distribution_version: "{{ jetty_distribution_file | basename | regex_replace('\\.tar\\.gz$', '') }}"
+  
+  - name: Copy over the Jetty distribution tarabll to the /tmp path
+    ansible.builtin.copy:
+      src: "{{ jetty_source_dir }}/{{ jetty_distribution_file }}"
+      dest: "{{ jetty_tmp_dir }}/{{ jetty_distribution_file }}"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0644'
+    become: true
+    no_log: true 
+
+# Application directories
+
+  - name: Extract jetty distribution
+    unarchive:
+      src: "{{ jetty_tmp_dir }}/{{ jetty_distribution_file }}"
+      dest: "{{ jetty_base_dir }}"
+      remote_src: true
+      creates: "{{ jetty_base_dir }}/{{ jetty_distribution_version }}"
+
+  ########################################################
+  # Copy and extract the Jetty Webapps onto the target
+  ########################################################
+  
+  - name: Copy over the Jetty distribution tarabll to the /tmp path
+    ansible.builtin.copy:
+      src: "{{ jetty_source_dir }}/{{ jetty_apps_file }}"
+      dest: "{{ jetty_tmp_dir }}/{{ jetty_apps_file }}"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0644'
+    become: true
+  
+  - name: Extract jetty apps
+    unarchive:
+      src: "{{ jetty_tmp_dir }}/{{ jetty_apps_file }}"
+      dest: "{{ jetty_base_dir }}"
+      remote_src: true
+      creates: "{{ jetty_base_dir }}/{{ jetty_apps_file }}"
+    become: true
+
+  - name: Create jetty-home symlink
+    file:
+      src: "{{ jetty_base_dir }}/{{ jetty_distribution_version }}"
+      dest: "{{ jetty_home_dir }}"
+      state: link
+      force: true
+     
+  # ----------------------------
+  # Clean up tasks
+  # ----------------------------  
+  - name: Delete temporary jetty archives on remote
+    file:
+      path: "{{ jetty_tmp_dir }}"
+      state: absent
+    delegate_to: localhost
+
+  when: "'webapps_oem_nodes' in group_names"
+  # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block

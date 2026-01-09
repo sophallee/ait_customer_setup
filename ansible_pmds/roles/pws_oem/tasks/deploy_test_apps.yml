@@ -1,0 +1,144 @@
+---
+# ----------------------------
+# Install dependencies for the PWS OEM application
+# ----------------------------
+- name: Test OEM App Instances
+  block:
+
+  # ----------------------------
+  # Pre-jetty files copy for transfer
+  # ----------------------------
+  # ----------------------------
+  # Jetty installation
+  # ----------------------------
+  - name: Create base PWS test data directory
+    ansible.builtin.file:
+      path: "{{ jetty_webapps_sample_data_dir }}"
+      state: directory
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0755'
+    become: true
+
+  # Create the base directory on the target node
+  - name: Render base PWS SOAP test payloads
+    ansible.builtin.template:
+      src: "{{ item }}"
+      dest: "{{ jetty_webapps_sample_data_dir }}/{{ item | regex_replace('\\.j2$', '') }}"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0644'
+    loop:
+      - general.xml.j2
+      - hmca.xml.j2
+    become: true
+
+  - name: Run PWS SOAP test for active OEM instances
+    ansible.builtin.command: >
+      curl -k
+      -X POST
+      -H 'Cache-Control: no-cache'
+      -H 'Content-type: text/xml'
+      -H 'Accept: */*'
+      -d @{{ jetty_webapps_sample_data_dir }}/general.xml
+      https://{{ pws_oem_config[item.key].hostname | default(inventory_hostname) }}:{{ pws_oem_config[item.key].https }}/pws
+    register: pws_test_raw
+    changed_when: false
+    failed_when: false
+    loop: "{{ pws_oem_install | dict2items }}"
+    loop_control:
+      label: "{{ item.key }}"
+    when:
+      - item.value.install | bool
+      - item.value.systemd_activate | bool
+    vars:
+      expected_d3acctid: "<D3ACCTID>{{ pws_oem_config[item.key].pmds_data_account }}</D3ACCTID>"
+    no_log: true 
+  
+  - name: Initialize PWS test results
+    ansible.builtin.set_fact:
+      pws_test_results: []
+        
+  - name: Build structured PWS test results
+    set_fact:
+      pws_test_results: >-
+        {{
+          pws_test_results + [
+            {
+              'instance': item.item.key,
+              'hostname': pws_oem_config[item.item.key].hostname | default(inventory_hostname),
+              'port': pws_oem_config[item.item.key].https,
+              'expected_account': pws_oem_config[item.item.key].pmds_data_account,
+              'status': (
+                'SKIPPED'
+                if item.skipped is defined and item.skipped
+                else (
+                  'PASS'
+                  if (item.rc | default(1)) == 0
+                     and ('<D3ACCTID>' ~ pws_oem_config[item.item.key].pmds_data_account ~ '</D3ACCTID>') in (item.stdout | default(''))
+                  else 'FAIL'
+                )
+              ),
+              'stdout': item.stdout | default('')
+            }
+          ]
+        }}
+    loop: "{{ pws_test_raw.results | default([]) }}"
+    no_log: true 
+  
+  - name: Separate failed, successful, and skipped PWS tests
+    set_fact:
+      pws_test_failures: "{{ pws_test_results | selectattr('status','equalto','FAIL') | list }}"
+      pws_test_successes: "{{ pws_test_results | selectattr('status','equalto','PASS') | list }}"
+      pws_test_skipped: "{{ pws_test_results | selectattr('status','equalto','SKIPPED') | list }}"
+  
+  - name: Build PWS test email body
+    ansible.builtin.set_fact:
+      pws_test_email_body: |
+        PWS OEM SOAP Test Results
+        ========================
+  
+        ❌ FAILED INSTANCES
+        ------------------
+        {% if pws_test_failures | length == 0 %}
+        None
+        {% else %}
+        {% for r in pws_test_failures %}
+        - {{ r.instance }} ({{ r.hostname }}:{{ r.port }})
+          Expected D3ACCTID: {{ r.expected_account }}
+        {% endfor %}
+        {% endif %}
+  
+        ✅ SUCCESSFUL INSTANCES
+        ---------------------
+        {% if pws_test_successes | length == 0 %}
+        None
+        {% else %}
+        {% for r in pws_test_successes %}
+        - {{ r.instance }} ({{ r.hostname }}:{{ r.port }})
+          D3ACCTID: {{ r.expected_account }}
+        {% endfor %}
+        {% endif %}
+  
+        ⚪ SKIPPED INSTANCES
+        -------------------
+        {% if pws_test_skipped | length == 0 %}
+        None
+        {% else %}
+        {% for r in pws_test_skipped %}
+        - {{ r.instance }} ({{ r.hostname }}:{{ r.port }})
+          Expected D3ACCTID: {{ r.expected_account }}
+        {% endfor %}
+        {% endif %}
+  
+  - name: Email PWS OEM SOAP test results via local mail command
+    ansible.builtin.shell: |
+      echo "{{ pws_test_email_body }}" | \
+      mail -s "PWS OEM SOAP Test Results — {{ 'FAILURES DETECTED' if pws_test_failures | length > 0 else 'ALL PASSED' }}" \
+      -r sophal.lee@auto-it.com sophal.lee@auto-it.com && sleep 1
+    delegate_to: localhost
+    become: false
+    when: pws_test_results is defined
+
+  when: "'webapps_oem_nodes' in group_names"
+  # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block

@@ -1,0 +1,6 @@
+---
+- name: Update FRPC permissions on all servers
+  hosts: frp_clients
+  become: true
+  roles:
+    - frpc

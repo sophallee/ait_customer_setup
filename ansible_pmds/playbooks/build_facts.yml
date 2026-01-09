@@ -1,0 +1,34 @@
+---
+- name: Build customer group inventory snapshot and generate group vars
+  hosts: all
+  vars:
+    customer_groups:
+      - bega_valley_motors
+      - berwicks_mitsubishi
+      - col_crawford
+      - davison
+      - fnq_hub
+      - gws_servers
+      - jackson_ford
+      - ken_casson
+      - max_kirwan
+      - mildura_trucks
+      - moorooka_nissan
+      - mornington_mitsubishi
+      - murwillumbah_trucks
+      - national_capital
+      - oz_car
+      - paul_wakeling
+      - peninsula_holden
+      - peter_dullard
+      - ross_gray
+      - south_morang
+      - sunco_motors
+      - sutherland_isuzu
+      - sydney_trucks
+      - tilford
+      - warwick
+      - westpoint
+  become: true
+  roles:
+    - gather_facts

@@ -1,0 +1,15 @@
+---
+- name: Ensure user account exists
+  user:
+    name: "{{ user_name }}"
+    state: "{{ user_state }}"
+    shell: "{{ user_shell }}"
+    groups: "{{ user_groups }}"
+    password: "{{ user_password }}"
+    create_home: yes
+
+- name: Add SSH key if provided
+  authorized_key:
+    user: "{{ user_name }}"
+    key: "{{ user_ssh_key }}"
+  when: user_ssh_key != ""

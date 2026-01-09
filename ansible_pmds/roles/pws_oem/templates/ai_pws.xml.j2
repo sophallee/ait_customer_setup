@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<!DOCTYPE Configure PUBLIC "-" "http://www.eclipse.org/jetty/configure_9_0.dtd">
+<Configure class="org.eclipse.jetty.webapp.WebAppContext">
+  
+  <Set name="displayName">PMDS Web Services</Set>
+  <Set name="logUrlOnStart">true</Set>
+  <Set name="contextPath">/</Set>
+  <Set name="war"><SystemProperty name="jetty.base"/>/webapps/ai_pws.war</Set>
+
+<Call name="insertHandler">
+    <Arg>
+      <New id="RequestLog" class="org.eclipse.jetty.server.handler.RequestLogHandler">
+        <Set name="requestLog">
+          <New id="RequestLogImpl" class="org.eclipse.jetty.server.NCSARequestLog">
+            <Set name="filename"><Property name="jetty.logs" default="./logs"/>/pws-yyyy_mm_dd.request.log</Set>
+            <Set name="filenameDateFormat">yyyy_MM_dd</Set>
+            <Set name="LogTimeZone">{{ host_timezone.stdout }}</Set>
+            <Set name="retainDays">90</Set>
+            <Set name="append">true</Set>
+            <Set name="LogLatency">true</Set>
+          </New>
+        </Set>
+      </New>
+    </Arg>
+  </Call>
+  
+	  <!-- Set alternative configuration file if nec - Uncomment if required.
+	  <Call class="java.lang.System" name="setProperty">
+		<Arg>PWSConfigurationFile</Arg>
+		<Arg>pwsConn.properties</Arg>
+	  </Call>	
+	  -->
+    
+	  <Call id="sh" name="getSessionHandler">
+            <Set name="usingCookies" type="boolean">false</Set>
+	  </Call>
+</Configure>

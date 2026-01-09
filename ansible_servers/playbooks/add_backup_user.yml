@@ -1,0 +1,10 @@
+---
+- hosts: dev_database_nodes
+  become: true
+  vars:
+    user_name: backup
+    user_shell: /bin/nologin
+    user_groups: ""
+    user_ssh_key: ""
+  roles:
+    - manage_users

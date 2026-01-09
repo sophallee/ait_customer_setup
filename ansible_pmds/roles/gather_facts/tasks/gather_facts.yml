@@ -1,0 +1,110 @@
+# gather_facts.yml
+---
+- name: Check if host is in one of the customer_inventory groups
+  ansible.builtin.set_fact:
+    host_customer_group: >-
+      {{
+        customer_groups
+        | select("in", group_names)
+        | list
+        | first
+      }}
+
+- name: Gather system information and check for services/files
+  block:
+    - name: Check for D3 installation
+      ansible.builtin.stat:
+        path: /usr/bin/d3
+      register: d3_exists
+
+    - name: Check for PMDS web service
+      ansible.builtin.systemd:
+        name: ai_pmdsweb1
+      register: pmdsweb_service
+      ignore_errors: true
+
+    - name: Check for desktop jetty start script
+      ansible.builtin.stat:
+        path: /usr/lib/jetty/start-desktop.sh
+      register: desktop_jetty_exists
+
+    - name: Check for MySQL service
+      ansible.builtin.systemd:
+        name: mysqld
+      register: mysql_service
+      ignore_errors: true
+
+    - name: Check for mariadb service (alternative to mysql)
+      ansible.builtin.systemd:
+        name: mariadb
+      register: mariadb_service
+      ignore_errors: true
+
+    - name: Check for running OEM services (oem_* pattern)
+      ansible.builtin.shell: |
+        systemctl list-units --type=service --state=running | grep -E '^oem_[a-zA-Z0-9_-]+\.service' | wc -l
+      register: oem_services_running
+      changed_when: false
+      failed_when: false
+      args:
+        executable: /bin/bash
+
+    - name: Check if /usr/lib/jetty directory exists
+      ansible.builtin.stat:
+        path: /usr/lib/jetty
+      register: jetty_dir
+      ignore_errors: true
+
+    - name: Find OEM PWS jetty start scripts (only if directory exists)
+      block:
+        - name: Find OEM PWS jetty start scripts
+          ansible.builtin.find:
+            paths: /usr/lib/jetty
+            patterns: "start-pws-*.sh"
+          register: pws_jetty_scripts
+          when: jetty_dir.stat.exists and jetty_dir.stat.isdir
+      
+      rescue:
+        - name: Set empty result on error
+          ansible.builtin.set_fact:
+            pws_jetty_scripts: { files: [] }
+
+    - name: Set service facts for this host
+      ansible.builtin.set_fact:
+        is_pmds_node: "{{ d3_exists.stat.exists | bool }}"
+        is_webapps_node: >-
+          {{ 
+            ((pmdsweb_service is succeeded and pmdsweb_service.status.ActiveState == 'active') or 
+            desktop_jetty_exists.stat.exists) | bool
+          }}
+        is_mysql_node: >-
+          {{
+            ((mysql_service is succeeded and mysql_service.status.ActiveState == 'active') or
+            (mariadb_service is succeeded and mariadb_service.status.ActiveState == 'active')) | bool
+          }}
+        is_oem_node: >-
+          {{
+            (oem_services_running.stdout | int > 0) or
+            (jetty_dir.stat.exists and 
+             jetty_dir.stat.isdir and 
+             pws_jetty_scripts is defined and 
+             pws_jetty_scripts.files | length > 0) | bool
+          }}
+        node_ip: "{{ ansible_default_ipv4.address }}"
+        node_hostname: "{{ inventory_hostname }}"
+
+- name: Add host to customer inventory (local fact)
+  ansible.builtin.set_fact:
+    local_host_data: {
+      'hostname': "{{ node_hostname }}",
+      'ip': "{{ node_ip }}",
+      'customer_group': "{{ host_customer_group | default('other_nodes') }}",
+      'is_pmds_node': "{{ is_pmds_node | default(false) }}",
+      'is_webapps_node': "{{ is_webapps_node | default(false) }}",
+      'is_mysql_node': "{{ is_mysql_node | default(false) }}",
+      'is_oem_node': "{{ is_oem_node | default(false) }}"
+    }
+
+- name: Show local host data for debugging
+  ansible.builtin.debug:
+    var: local_host_data

@@ -1,0 +1,5 @@
+---
+- hosts: all_linux_servers
+  become: true
+  roles:
+    - linux_servers

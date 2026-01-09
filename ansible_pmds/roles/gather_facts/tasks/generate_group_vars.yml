@@ -1,0 +1,182 @@
+---
+- name: Ensure group_vars temp directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_temp_group_vars_dir }}"
+    state: directory
+    mode: '0755'
+  run_once: true
+  delegate_to: localhost
+
+- name: Ensure host_vars temp directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_temp_host_vars_dir }}"
+    state: directory
+    mode: '0755'
+  run_once: true
+  delegate_to: localhost
+
+# Create customer group files using template
+- name: Create customer group files
+  ansible.builtin.template:
+    src: template_group_vars.yml.j2
+    dest: "{{ ansible_temp_group_vars_dir }}/{{ group }}.yml"
+    mode: '0644'
+  vars:
+    # Get all hosts in this group that have local_host_data
+    hosts_in_group_data: >-
+      {{ 
+        groups[group] 
+        | map('extract', hostvars) 
+        | selectattr('local_host_data', 'defined') 
+        | map(attribute='local_host_data')
+        | list 
+      }}
+    
+    # Get inventory hostnames for this group
+    inventory_hosts_in_group: "{{ groups[group] }}"
+    
+    # Find PMDS node in this group
+    pmds_host_data: >-
+      {{ 
+        (hosts_in_group_data 
+        | selectattr('is_pmds_node', 'equalto', true) 
+        | list 
+        | first) 
+        | default({}) 
+      }}
+    
+    pmds_host: "{{ pmds_host_data.hostname | default('') }}"
+    pmds_ip: "{{ pmds_host_data.ip | default('') }}"
+    
+    # Find the inventory hostname for the PMDS node
+    pmds_inventory_hostname: >-
+      {{
+        inventory_hosts_in_group 
+        | select('eq', pmds_host_data.hostname) 
+        | list 
+        | first 
+        | default(pmds_host)
+      }}
+    
+    # Extract short hostname for PMDS node from inventory hostname
+    pmds_short_hostname: >-
+      {{
+        pmds_inventory_hostname.split('.')[0] if pmds_inventory_hostname else ''
+      }}
+    
+    # Find Webapps node in this group
+    webapps_host_data: >-
+      {{ 
+        (hosts_in_group_data 
+        | selectattr('is_webapps_node', 'equalto', true) 
+        | list 
+        | first) 
+        | default({}) 
+      }}
+    
+    webapps_host: "{{ webapps_host_data.hostname | default('') }}"
+    webapps_ip: "{{ webapps_host_data.ip | default('') }}"
+    
+    # Find the inventory hostname for the Webapps node
+    webapps_inventory_hostname: >-
+      {{
+        inventory_hosts_in_group 
+        | select('eq', webapps_host_data.hostname) 
+        | list 
+        | first 
+        | default(webapps_host)
+      }}
+    
+    # Extract short hostname for Webapps node from inventory hostname
+    webapps_short_hostname: >-
+      {{
+        webapps_inventory_hostname.split('.')[0] if webapps_inventory_hostname else ''
+      }}
+    
+    # Find MySQL node in this group
+    mysql_host_data: >-
+      {{ 
+        (hosts_in_group_data 
+        | selectattr('is_mysql_node', 'equalto', true) 
+        | list 
+        | first) 
+        | default({}) 
+      }}
+    
+    mysql_host: "{{ mysql_host_data.hostname | default('') }}"
+    mysql_ip: "{{ mysql_host_data.ip | default('') }}"
+    
+    # Find OEM node in this group
+    oem_host_data: >-
+      {{ 
+        (hosts_in_group_data 
+        | selectattr('is_oem_node', 'equalto', true) 
+        | list 
+        | first) 
+        | default({}) 
+      }}
+    
+    oem_host: "{{ oem_host_data.hostname | default('') }}"
+    oem_ip: "{{ oem_host_data.ip | default('') }}"
+    
+    # Find the inventory hostname for the OEM node
+    oem_inventory_hostname: >-
+      {{
+        inventory_hosts_in_group 
+        | select('eq', oem_host_data.hostname) 
+        | list 
+        | first 
+        | default(oem_host)
+      }}
+    
+    # Extract short hostname for OEM node from inventory hostname
+    oem_short_hostname: >-
+      {{
+        oem_inventory_hostname.split('.')[0] if oem_inventory_hostname else ''
+      }}
+    
+  loop: "{{ customer_groups }}"
+  loop_control:
+    loop_var: group
+  when: 
+    - group != 'other_nodes'
+    - hosts_in_group_data | length > 0  # Only create files for groups with hosts
+  run_once: true
+  delegate_to: localhost
+
+# Create individual files for hosts in other_nodes group (if they have any role)
+- name: Create individual files for role hosts in other_nodes
+  ansible.builtin.template:
+    src: template_group_vars.yml.j2
+    dest: "{{ ansible_temp_group_vars_dir }}/{{ hostname }}.yml"
+    mode: '0644'
+  vars:
+    # For PMDS role - use actual hostname if it's a PMDS node
+    pmds_host: "{{ hostvars[hostname].local_host_data.is_pmds_node | ternary(hostname, '') }}"
+    pmds_ip: "{{ hostvars[hostname].local_host_data.is_pmds_node | ternary(hostvars[hostname].local_host_data.ip, '') }}"
+    pmds_short_hostname: "{{ hostvars[hostname].local_host_data.is_pmds_node | ternary(hostname.split('.')[0], '') }}"
+    
+    # For Webapps role - use actual hostname if it's a Webapps node
+    webapps_host: "{{ hostvars[hostname].local_host_data.is_webapps_node | ternary(hostname, '') }}"
+    webapps_ip: "{{ hostvars[hostname].local_host_data.is_webapps_node | ternary(hostvars[hostname].local_host_data.ip, '') }}"
+    webapps_short_hostname: "{{ hostvars[hostname].local_host_data.is_webapps_node | ternary(hostname.split('.')[0], '') }}"
+    
+    # For MySQL role - use actual hostname if it's a MySQL node
+    mysql_host: "{{ hostvars[hostname].local_host_data.is_mysql_node | ternary(hostname, '') }}"
+    mysql_ip: "{{ hostvars[hostname].local_host_data.is_mysql_node | ternary(hostvars[hostname].local_host_data.ip, '') }}"
+    
+    # For OEM role - use actual hostname if it's an OEM node
+    oem_host: "{{ hostvars[hostname].local_host_data.is_oem_node | ternary(hostname, '') }}"
+    oem_ip: "{{ hostvars[hostname].local_host_data.is_oem_node | ternary(hostvars[hostname].local_host_data.ip, '') }}"
+    oem_short_hostname: "{{ hostvars[hostname].local_host_data.is_oem_node | ternary(hostname.split('.')[0], '') }}"
+    
+  with_items: "{{ groups['other_nodes'] }}"
+  loop_control:
+    loop_var: hostname
+  when: 
+    - hostvars[hostname].local_host_data.is_pmds_node | default(false) or
+      hostvars[hostname].local_host_data.is_webapps_node | default(false) or
+      hostvars[hostname].local_host_data.is_mysql_node | default(false) or
+      hostvars[hostname].local_host_data.is_oem_node | default(false)
+  run_once: true
+  delegate_to: localhost

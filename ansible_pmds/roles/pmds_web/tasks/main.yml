@@ -1,0 +1,10 @@
+---
+- name: Copy index.txt
+  copy:
+    src: index.txt
+    dest: /home/autoit/index.txt
+    owner: pick
+    group: pick
+    mode: '0644'
+  notify: restart webapp service
+  when: restart_webapp_service

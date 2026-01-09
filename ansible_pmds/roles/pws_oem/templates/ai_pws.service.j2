@@ -1,0 +1,15 @@
+[Unit]
+Description={{ oem.app_description }}
+
+[Service]
+User={{ jetty_user }}
+Group={{ jetty_group }}
+Type=forking
+Environment="TOKEN=pGNqduRFkB4K9C2vijOmUDa2kPtUhArN"
+ExecStart={{ jetty_apps_dir }}/oem_{{ oem.app_name }}/ai_pws.sh start
+ExecStop={{ jetty_apps_dir }}/oem_{{ oem.app_name }}/ai_pws.sh stop
+
+[Install]
+WantedBy=multi-user.target
+
+

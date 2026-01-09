@@ -1,0 +1,15 @@
+---
+- name: restart frpc
+  ansible.builtin.systemd:
+    name: frpc
+    state: restarted
+    enabled: true
+  async: 0
+  poll: 0
+  listen: restart frpc
+
+- name: wait for frpc reconnect
+  ansible.builtin.wait_for_connection:
+    timeout: 60
+    delay: 5
+  listen: restart frpc

@@ -1,0 +1,6 @@
+---
+# default variables for the webapps role
+webapp_port: 8091
+webapp_user: pick
+webapp_group: pick
+restart_webapp_service: false   # default is no restart

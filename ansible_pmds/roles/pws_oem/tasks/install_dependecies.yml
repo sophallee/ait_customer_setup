@@ -1,0 +1,53 @@
+---
+# ----------------------------
+# Install dependencies for the PWS OEM application
+# ----------------------------
+- name: Deploy Package Depencies and Jetty 
+  block:
+
+  - name: Install required system packages for Jetty
+    package:
+      name:
+        - java-1.8.0-openjdk-devel
+        - xmlstarlet
+        - nc
+        - zlib-devel
+        - openssl-devel
+        - ca-certificates
+      state: present
+    become: true
+    when: ansible_os_family == "RedHat"
+      
+  # ----------------------------
+  # /etc/hosts management
+  # ----------------------------
+  - name: Add pmds host entry
+    lineinfile:
+      path: /etc/hosts
+      line: "{{ pmds_ip }} {{ pmds_host }}"
+      state: present
+    when: pmds_ip is not none and pmds_host is not none
+  
+  - name: Add webapps host entry
+    lineinfile:
+      path: /etc/hosts
+      line: "{{ webapps_ip }} {{ webapps_host }}"
+      state: present
+    when: webapps_ip is not none and webapps_host is not none
+  
+  - name: Add mysql host entry
+    lineinfile:
+      path: /etc/hosts
+      line: "{{ mysql_ip }} {{ mysql_host }}"
+      state: present
+    when: mysql_ip is not none and mysql_host is not none
+  
+  - name: Add oem host entry
+    lineinfile:
+      path: /etc/hosts
+      line: "{{ oem_ip }} {{ oem_host }}"
+      state: present
+    when: oem_ip is not none and oem_host is not none
+
+  when: "'webapps_oem_nodes' in group_names"
+  # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block

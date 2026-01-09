@@ -1,0 +1,27 @@
+pmds_host: "{{ pmds_host }}"
+pmds_ip: "{{ pmds_ip }}"
+webapps_host: "{{ webapps_host }}"
+webapps_ip: "{{ webapps_ip }}"
+mysql_host: "{{ mysql_host }}"
+mysql_ip: "{{ mysql_ip }}"
+oem_host: "{{ oem_host }}"
+oem_ip: "{{ oem_ip }}"
+
+# PMDS default configuration
+pmds_instances:
+{% if pmds_host and pmds_short_hostname %}
+  pmds_account_1:
+    hostname: "{{ pmds_host }}"
+    server_port: 12050
+    data_account: "PMDS-DATA-1"
+    pws_username: "PWS1"
+    pws_passwd: "{{ pmds_password[pmds_short_hostname].data_account_1.pws_password | default('CHANGE_ME') }}"
+  pmds_account_2:
+    hostname: "{{ pmds_host }}"
+    server_port: 12051
+    data_account: "PMDS-DATA-2"
+    pws_username: "PWS2"
+    pws_passwd: "{{ pmds_password[pmds_short_hostname].data_account_2.pws_password | default('CHANGE_ME') }}"
+{% else %}
+  # No PMDS host configured
+{% endif %}

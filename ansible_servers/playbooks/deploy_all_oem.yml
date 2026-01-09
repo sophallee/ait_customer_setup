@@ -1,0 +1,5 @@
+---
+- hosts: webapps_oem_nodes
+  become: true
+  roles:
+    - pws_oem

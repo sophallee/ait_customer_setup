@@ -1,0 +1,187 @@
+---
+- name: Gather OEM node port information as facts
+  block:
+    - name: Check if /usr/lib/jetty directory exists
+      ansible.builtin.stat:
+        path: /usr/lib/jetty
+      register: jetty_dir
+      ignore_errors: true
+    
+    - name: Find OEM start scripts with exclusions
+      ansible.builtin.shell: |
+        # Find OEM start scripts with all exclusions
+        find /usr/lib/jetty -type f -name "start-*.sh" \
+          ! -name "start-doc*.sh" \
+          ! -name "start-crm*.sh" \
+          ! -name "start-pinpoint*.sh" \
+          ! -name "start-kaizen*.sh" \
+          ! -name "start-https*.sh" \
+          ! -name "start-driveway*.sh" \
+          ! -name "start-pws.sh" \
+          ! -name "start-pws2.sh" \
+          ! -name "start-pws-2.sh" \
+          ! -name "start-pws-dev*.sh" \
+          ! -name "start-pws-uat*.sh" \
+          ! -name "start-desktop*.sh" 2>/dev/null
+      register: oem_start_scripts
+      changed_when: false
+      failed_when: false
+      args:
+        executable: /bin/bash
+      when: jetty_dir.stat.exists and jetty_dir.stat.isdir
+    
+    - name: Extract stop ports from OEM start scripts using shell
+      ansible.builtin.shell: |
+        # Extract stop ports from all found scripts
+        {% if oem_start_scripts.stdout_lines is defined and oem_start_scripts.stdout_lines | length > 0 %}
+        {% for script in oem_start_scripts.stdout_lines %}
+        echo "SCRIPT:{{ script }}"
+        grep -i '^stop' "{{ script }}" | grep -o 'stop_port=[0-9]*' | cut -d'=' -f2 | head -1 || echo "NOT_FOUND"
+        {% endfor %}
+        {% endif %}
+      register: stop_ports_output
+      changed_when: false
+      failed_when: false
+      args:
+        executable: /bin/bash
+      when: 
+        - oem_start_scripts.stdout_lines is defined
+        - oem_start_scripts.stdout_lines | length > 0
+    
+    - name: Parse stop ports from output
+      ansible.builtin.set_fact:
+        oem_stop_ports: >-
+          {{
+            [] | default([])
+          }}
+      when: 
+        - stop_ports_output is defined
+        - stop_ports_output.stdout_lines is defined
+        - stop_ports_output.stdout_lines | length > 0
+    
+    - name: Build stop ports list
+      ansible.builtin.set_fact:
+        oem_stop_ports: >-
+          {{
+            oem_stop_ports | default([]) + [{
+              'script': item.0,
+              'stop_port': item.1
+            }]
+          }}
+      loop: "{{ stop_ports_output.stdout_lines | batch(2) | list }}"
+      when: 
+        - stop_ports_output is defined
+        - stop_ports_output.stdout_lines is defined
+        - stop_ports_output.stdout_lines | length > 0
+        - item.0 is defined
+        - item.0.startswith('SCRIPT:')
+    
+    - name: Find OEM pws XML config files with exclusions
+      ansible.builtin.shell: |
+        # Find OEM pws XML files excluding dev, uat, https variants
+        find /usr/lib/jetty/etc -type f -name "pws-*.xml" \
+          ! -name "pws-dev*.xml" \
+          ! -name "pws-uat*.xml" \
+          ! -name "pws-https*.xml" 2>/dev/null
+      register: oem_xml_files
+      changed_when: false
+      failed_when: false
+      args:
+        executable: /bin/bash
+      when: 
+        - jetty_dir.stat.exists
+        - jetty_dir.stat.isdir
+    
+    - name: Extract HTTP/HTTPS ports from OEM XML files using shell
+      ansible.builtin.shell: |
+        # Extract ports from all found XML files
+        {% if oem_xml_files.stdout_lines is defined and oem_xml_files.stdout_lines | length > 0 %}
+        {% for xml_file in oem_xml_files.stdout_lines %}
+        echo "XMLFILE:{{ xml_file }}"
+        # Extract HTTP port
+        http_port=$(sed -n '/SocketListener/,/\/Call/p' "{{ xml_file }}" | grep 'default="' | grep -o '[0-9]*' | head -1)
+        if [ -z "$http_port" ]; then
+          http_port=$(sed -n '/SocketListener/,/\/Call/p' "{{ xml_file }}" | grep '<Set name="Port">' | grep -o '[0-9]*' | head -1)
+        fi
+        echo "HTTP:${http_port:-NOT_FOUND}"
+        # Extract HTTPS port
+        https_port=$(sed -n '/SslListener/,/\/Call/p' "{{ xml_file }}" | grep '<Set name="Port">' | grep -o '[0-9]*' | head -1)
+        echo "HTTPS:${https_port:-NOT_FOUND}"
+        {% endfor %}
+        {% endif %}
+      register: xml_ports_output
+      changed_when: false
+      failed_when: false
+      args:
+        executable: /bin/bash
+      when: 
+        - oem_xml_files.stdout_lines is defined
+        - oem_xml_files.stdout_lines | length > 0
+    
+    - name: Parse XML ports from output
+      ansible.builtin.set_fact:
+        oem_http_ports: >-
+          {{
+            [] | default([])
+          }}
+      when: 
+        - xml_ports_output is defined
+        - xml_ports_output.stdout_lines is defined
+        - xml_ports_output.stdout_lines | length > 0
+    
+    - name: Build HTTP ports list
+      ansible.builtin.set_fact:
+        oem_http_ports: >-
+          {{
+            oem_http_ports | default([]) + [{
+              'xml_file': xml_file,
+              'http_port': http_port,
+              'https_port': https_port
+            }]
+          }}
+      loop: "{{ xml_ports_output.stdout_lines | batch(3) | list }}"
+      when: 
+        - xml_ports_output is defined
+        - xml_ports_output.stdout_lines is defined
+        - xml_ports_output.stdout_lines | length > 0
+        - item.0 is defined
+        - item.0.startswith('XMLFILE:')
+      vars:
+        xml_file: "{{ item.0 | regex_replace('^XMLFILE:', '') }}"
+        http_port: "{{ item.1 | regex_replace('^HTTP:', '') }}"
+        https_port: "{{ item.2 | regex_replace('^HTTPS:', '') }}"
+    
+    - name: Store OEM port facts
+      ansible.builtin.set_fact:
+        oem_port_facts: {
+          'hostname': "{{ inventory_hostname }}",
+          'jetty_dir_exists': "{{ jetty_dir.stat.exists | default(false) }}",
+          'start_scripts': "{{ oem_start_scripts.stdout_lines | default([]) }}",
+          'stop_ports': "{{ oem_stop_ports | default([]) }}",
+          'xml_files': "{{ oem_xml_files.stdout_lines | default([]) }}",
+          'http_ports': "{{ oem_http_ports | default([]) }}"
+        }
+    
+    - name: Display collected OEM port facts
+      ansible.builtin.debug:
+        var: oem_port_facts
+
+  rescue:
+    - name: Handle OEM detection errors and set empty facts
+      block:
+        - name: Set empty OEM facts on error
+          ansible.builtin.set_fact:
+            oem_port_facts: {
+              'hostname': "{{ inventory_hostname }}",
+              'jetty_dir_exists': false,
+              'start_scripts': [],
+              'stop_ports': [],
+              'xml_files': [],
+              'http_ports': []
+            }
+        
+        - name: Display error message
+          ansible.builtin.debug:
+            msg: "OEM port detection skipped on {{ inventory_hostname }} (jetty directory may not exist)"
+
+  when: "'webapps_oem_nodes' in group_names"

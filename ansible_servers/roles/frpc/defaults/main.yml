@@ -1,0 +1,7 @@
+# default variables for the webapps role
+---
+frp_user: frp
+frp_group: frp
+frp_config_path: /etc/frp
+frp_log_path: /var/log/frp
+frpc_binary_path: /usr/local/bin/frpc

@@ -1,0 +1,8 @@
+---
+- name: Copy ansible_all_linux.txt
+  copy:
+    src: ansible_all_linux.txt
+    dest: /home/autoit/ansible_all_linux.txt
+    owner: pick
+    group: pick
+    mode: '0644'

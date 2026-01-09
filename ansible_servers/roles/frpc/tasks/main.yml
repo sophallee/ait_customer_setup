@@ -1,0 +1,19 @@
+---
+- name: Ensure FRP directories and files have correct permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "{{ item.type }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: /etc/frp, type: directory, owner: root, group: root, mode: '0755' }
+    - { path: /var/log/frp, type: directory, owner: frp, group: frp, mode: '0700' }
+    - { path: /usr/local/bin/frpc, type: file, owner: frp, group: frp, mode: '0500' }
+    - { path: /etc/frp/certs/client.key, type: file, owner: frp, group: frp, mode: '0400' }
+    - { path: /etc/frp/certs/client.pem, type: file, owner: root, group: root, mode: '0644' }
+    - { path: /etc/frp/certs/client.crt, type: file, owner: root, group: root, mode: '0644' }
+    - { path: /etc/frp/frpc.toml, type: file, owner: frp, group: frp, mode: '0400' }
+  notify: restart frpc
+  when: ansible_facts['os_family'] == "RedHat" 
+

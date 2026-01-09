@@ -1,0 +1,273 @@
+- name: OEM setup and configuration
+  block:
+
+  - name: Build list of installed OEM instances
+    ansible.builtin.set_fact:
+      oem_installed_instances: >-
+        {{
+          pws_oem_install
+          | dict2items
+          | selectattr('value.install', 'equalto', true)
+          | list
+        }}
+  - name: Create OEM application directories
+    ansible.builtin.file:
+      path: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}"
+      state: directory
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0755'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    become: true
+    no_log: true
+
+  - name: Rsync PWS template to application folder locally
+    ansible.posix.synchronize:
+      src: "{{ oem_pws_template_dir }}/"
+      dest: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}"
+      archive: yes
+      delete: yes
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    delegate_to: "{{ inventory_hostname }}"
+    become: true
+    no_log: true
+
+  - name: Ensure jetty_home_dir has correct ownership
+    ansible.builtin.file:
+      path: "{{ jetty_home_dir }}"
+      state: directory
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      recurse: yes
+      mode: '0755'
+
+  - name: Ensure jetty_apps_dir has correct ownership
+    ansible.builtin.file:
+      path: "{{ jetty_apps_dir }}"
+      state: directory
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      recurse: yes
+      mode: '0755'
+
+  - name: Create env.properties config from template
+    ansible.builtin.template:
+      src: env.properties.j2
+      dest: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}/etc/env.properties"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0644'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    become: true
+    no_log: true
+
+  - name: Get timezone of host
+    command: timedatectl show -p Timezone --value
+    register: host_timezone
+    changed_when: false
+
+  - name: Create ai_pws.xml from template
+    ansible.builtin.template:
+      src: ai_pws.xml.j2
+      dest: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}/webapps/ai_pws.xml"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0644'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    vars:
+      jetty_timezone: "{{ host_timezone.stdout | default('Australia/Melbourne') }}"
+    become: true
+    no_log: true
+
+  - name: Create ai_pws.sh from template
+    ansible.builtin.template:
+      src: ai_pws.sh.j2
+      dest: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}/ai_pws.sh"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0755'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    vars:
+      oem: "{{ pws_oem_config[item.key] }}"
+      oem_name: "{{ item.key }}"
+    become: true
+    no_log: true
+
+  - name: Render Jetty start.ini per OEM instance
+    ansible.builtin.template:
+      src: start.ini.j2
+      dest: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}/start.ini"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0600'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    vars:
+      oem: "{{ pws_oem_config[item.key] }}"
+    become: true
+    no_log: true
+
+  - name: Copy over the certificates to the jetty keystore path
+    ansible.builtin.copy:
+      src: "{{ certificate_source_dir }}/{{ pws_oem_config[item.key].certificate_jks }}"
+      dest: "{{ jetty_apps_keystore_path }}/{{ pws_oem_config[item.key].certificate_jks }}"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0640'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    become: true
+    no_log: true
+
+  - name: Copy Hyundai CA certificate for HMCA instances
+    ansible.builtin.copy:
+      src: "{{ certificate_source_dir }}/{{ hmca_ca_cert }}"
+      dest: "/etc/pki/ca-trust/source/anchors/{{ hmca_ca_cert }}"
+      owner: "root"
+      group: "root"
+      mode: '0644'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    when: item.key.startswith('hmca')
+    become: true
+    no_log: true
+
+  - name: Update system CA trust
+    ansible.builtin.command:
+      cmd: update-ca-trust extract
+    become: true
+
+  - name: Create keystore symlinks per OEM instance
+    ansible.builtin.file:
+      src:  "{{ jetty_apps_keystore_path }}/{{ pws_oem_config[item.key].certificate_jks }}"
+      dest: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}/etc/keystores/{{ pws_oem_config[item.key].certificate_symlink }}"
+      state: link
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    become: true  
+    no_log: true
+
+  - name: Create truststore symlinks per OEM instance
+    ansible.builtin.file:
+      src:  "{{ trust_store_path }}"
+      dest: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}/etc/keystores/{{ pws_oem_config[item.key].trust_store_symlink }}"
+      state: link
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    become: true  
+    no_log: true    
+
+  - name: Copy over the PWS warfile to the Jetty apps path
+    ansible.builtin.copy:
+      src: "{{ oem_pws_source_dir }}/{{ pws_oem_config[item.key].pws_war_version }}"
+      dest: "{{ oem_pws_war_files_dir }}/{{ pws_oem_config[item.key].pws_war_version }}"
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+      mode: '0640'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    become: true
+    no_log: true 
+
+  - name: Create PWS WAR hardlink per OEM instance
+    ansible.builtin.file:
+      src: "{{ oem_pws_war_files_dir }}/{{ pws_oem_config[item.key].pws_war_version }}" 
+      dest: "{{ jetty_apps_dir }}/oem_{{ pws_oem_config[item.key].app_name }}/webapps/{{ oem_pws_hardlink }}"
+      state: hard
+      owner: "{{ jetty_user }}"
+      group: "{{ jetty_group }}"
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    become: true
+    no_log: true 
+    
+  when: "'webapps_oem_nodes' in group_names"
+  # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block
+
+- name: System setup and configuration
+  block:
+
+  - name: Build list of installed OEM instances
+    ansible.builtin.set_fact:
+      oem_installed_instances: >-
+        {{
+          pws_oem_install
+          | dict2items
+          | selectattr('value.install', 'equalto', true)
+          | list
+        }}
+
+  - name: Render systemd service for each PWS instance
+    ansible.builtin.template:
+      src: ai_pws.service.j2
+      dest: "/etc/systemd/system/oem_{{ pws_oem_config[item.key].app_name }}.service"
+      owner: root
+      group: root
+      mode: '0644'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    vars:
+      oem: "{{ pws_oem_config[item.key] }}"
+    become: true
+    no_log: true
+
+  - name: Reload systemd daemon
+    ansible.builtin.systemd:
+      daemon_reload: yes
+    become: true
+  
+  - name: Start PWS services (if activated)
+    ansible.builtin.systemd:
+      name: "oem_{{ pws_oem_config[item.key].app_name }}.service"
+      state: restarted
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    when: item.value.systemd_activate | default(false) | bool
+    become: true
+    no_log: true
+  
+  - name: Enable PWS services at boot (if enabled)
+    ansible.builtin.systemd:
+      name: "oem_{{ pws_oem_config[item.key].app_name }}.service"
+      enabled: yes
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    when: item.value.systemd_enable | default(false) | bool
+    become: true
+    no_log: true
+  
+  - name: Open firewall for OEM PWS HTTPS port
+    ansible.posix.firewalld:
+      port: "{{ pws_oem_config[item.key].https }}/tcp"
+      permanent: true
+      state: enabled
+      immediate: true
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    when: item.value.systemd_enable | default(false) | bool
+    become: true
+    no_log: true
+
+  when: "'webapps_oem_nodes' in group_names"
+  # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block

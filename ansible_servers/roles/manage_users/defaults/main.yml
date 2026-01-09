@@ -1,0 +1,8 @@
+---
+# default variables for the webapps role
+user_name: autoit
+user_shell: /bin/bash
+user_state: present
+user_groups: ""
+user_password: ""
+user_ssh_key: ""

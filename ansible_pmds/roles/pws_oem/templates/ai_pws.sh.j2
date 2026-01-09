@@ -1,0 +1,182 @@
+#!/bin/bash
+if ! whoami | grep -q '{{ jetty_user }}'; then
+    echo "Script needs to run as the user pick."
+    exit 1
+fi
+
+if [ "$TOKEN" != "pGNqduRFkB4K9C2vijOmUDa2kPtUhArN" ]; then
+  echo "Script needs to run via systemctl. Aborting."
+  exit 10
+fi
+
+script_file=$(basename "$0")
+script_path=$(realpath "$0")
+script_dir=$(dirname "$script_path")
+script_name=$(echo $script_file | cut -d. -f 1)
+cd "$script_dir"
+
+app="$(basename -- "$0" ".sh")"
+pid="$(cat work/."$app".pid 2>&-)"
+
+stop_port={{ oem.dstop_port }}
+stop_key="$app"
+
+mkdir -p work/ 2>&-
+
+# screen utils
+green() { echo -en "\e[92m${*}\e[0m" ;}
+blue() { echo -en "\e[94m${*}\e[0m" ;}
+yellow() { echo -en "\e[93m${*}\e[0m" ;}
+red() { echo -en "\e[91m${*}\e[0m" ;}
+grey() { echo -en "\e[90m${*}\e[0m" ;}
+crt () { echo -e "[`date +"%F %T"`] [$(grey "$app")]" "$@" ;}
+ok () { crt "[$(green "ok...")]" "$@" 1>&2 ;}
+info () { crt "[$(blue "info.")]" "$@" ;}
+warn () { crt "[$(yellow "warn.")]" "$@" ;}
+error () { crt "[$(red "error")]" "$@" 1>&2 ;}
+other () { crt "[$(grey ".....")]" "$@" 1>&2 ;}
+
+properties() { 
+  path="env.properties"
+  if [ -f "$path" ]; then
+    echo "path=$path"
+    echo "$(cat "$path")"
+    return 0
+  fi
+  path="../env.properties"
+  if [ -f "$path" ]; then
+    echo "path=$path"
+    echo "$(cat "$path")"
+    return 0
+  fi
+  path="etc/env.properties"
+  if [ -f "$path" ]; then
+    echo "path=$path"
+    echo "$(cat "$path")"
+    return 0
+  fi
+  path="../etc/env.properties"
+  if [ -f "$path" ]; then
+    echo "path=$path"
+    echo "$(cat "$path")"
+    return 0
+  fi
+  return 1
+}
+
+# defaults/base
+eval "$(properties)";
+java_home="$JAVA_HOME"
+
+# functionality
+start() {
+  
+  if status; then
+    error "$app appears to be running already"
+    return 0
+  fi
+
+  info "clearing work folder"
+  rm -rf work/*
+  
+  info "starting"
+  "$java_home/bin/java" -jar "{{ jetty_home_dir }}/start.jar" \
+                        STOP.KEY="$stop_key" \
+                        STOP.PORT="$stop_port" \
+                        -DDBPropFile=etc/mysql.properties \
+                        "$@" | /usr/bin/logger 2>&1 & 
+                        
+  pid=$!
+  echo -n "$pid" > work/."$app".pid
+
+  sleep 5
+  if status; then
+    ok "started ($pid)"
+  else
+    error "failed to start. check logs/$app.log" | /usr/bin/logger 2>&1
+    exit 1
+  fi
+  
+  if [[ "$opt_tail" == 1 ]]; then
+    tail -f "logs/$app.log"
+  fi
+}
+
+stop() {
+ 
+  if ! status; then
+    info "$app ($pid) doesn't appear to be running"
+    return 0
+  fi
+
+  info "stopping"
+
+  "$java_home/bin/java" -jar "{{ jetty_home_dir }}/start.jar" \
+                        --stop \
+                        STOP.PORT="$stop_port" \
+                        STOP.KEY="$stop_key"
+
+  sleep 2
+  if status; then
+    kill -SIGTERM "$pid"
+    sleep 1
+    if status; then
+      kill -SIGHUP "$pid"
+      sleep 1
+      if status; then
+        kill -SIGKILL "$pid"
+      fi
+    fi
+    warn "killed process $pid"
+  fi
+  
+}
+
+status() {
+
+  if kill -0 "$pid" 2>&-; then
+    return 0
+  else
+    >"work/.$app.pid"
+    return 1
+  fi
+
+}
+
+opt_action=""
+opt_tail=0
+
+while [[ "$1" != "" ]]; do
+  case $1 in
+    # options
+    --tail) opt_tail=1;;
+    # actions
+    restart) opt_action="$1";;
+    stop) opt_action="$1";;
+    start) opt_action="$1";;
+    status) opt_action="$1";;
+  esac  
+  shift
+done
+
+# main
+case "$opt_action" in
+  start) 
+    start "$@"
+  ;;
+  stop) 
+    stop "$@"
+  ;;
+  restart)
+    stop
+    sleep 5
+    start
+  ;;
+  status)
+    if status; then
+      info "$app ($pid) is running"
+    else
+      info "$app ($pid) is not running"
+    fi
+  ;;
+esac
