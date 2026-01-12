@@ -4,7 +4,6 @@
 # ----------------------------
 - name: Deploy Package Depencies and Jetty 
   block:
-
   - name: Install required system packages for Jetty
     package:
       name:

@@ -36,24 +36,29 @@
     become: true
     no_log: true
 
-  - name: Ensure jetty_home_dir has correct ownership
+  - name: Ensure jetty_base_dir has correct ownership
     ansible.builtin.file:
-      path: "{{ jetty_home_dir }}"
+      path: "{{ jetty_base_dir }}"
       state: directory
       owner: "{{ jetty_user }}"
       group: "{{ jetty_group }}"
       recurse: yes
-      mode: '0755'
 
-  - name: Ensure jetty_apps_dir has correct ownership
-    ansible.builtin.file:
-      path: "{{ jetty_apps_dir }}"
-      state: directory
-      owner: "{{ jetty_user }}"
-      group: "{{ jetty_group }}"
-      recurse: yes
-      mode: '0755'
-
+  # Set all directories to 755, excluding any */work directories
+  - name: Set all directories under jetty_base_dir to 755 (excluding work directories)
+    ansible.builtin.shell: |
+      find {{ jetty_base_dir }} -mindepth 1 -type d -name work -prune -o -type d -exec chmod 755 {} +
+      
+  # Set all regular files to 644, excluding files under */work directories
+  - name: Set all regular files under jetty_base_dir to 644 (excluding work directories)
+    ansible.builtin.shell: |
+      find {{ jetty_base_dir }} -path "*/work/*" -prune -o -type f -exec chmod 644 {} +
+  
+  # Set scripts/binaries to 755 (excluding work directories)
+  - name: Set scripts and binaries to 755 (excluding work directories)
+    ansible.builtin.shell: |
+      find {{ jetty_base_dir }} -path "*/work/*" -prune -o -type f \( -name "*.sh" -o -name "*.bin" -o -name "*.py" \) -exec chmod 755 {} +
+  
   - name: Create env.properties config from template
     ansible.builtin.template:
       src: env.properties.j2
