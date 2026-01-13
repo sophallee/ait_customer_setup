@@ -1,93 +1,98 @@
 ---
-- name: Load QA-specific vars if in national_capital group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/national_capital.yml"
-  when: "'national_capital' in group_names"
-
-- name: Load QA-specific vars if in mildura_trucks group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/mildura_trucks.yml"
-  when: "'mildura_trucks' in group_names"
-
-- name: Load QA-specific vars if in berwicks_mitsubishi group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/berwicks_mitsubishi.yml"
-  when: "'berwicks_mitsubishi' in group_names"
-
-- name: Load QA-specific vars if in max_kirwan group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/max_kirwan.yml"
-  when: "'max_kirwan' in group_names"
-
-- name: Load QA-specific vars if in south_morang group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/south_morang.yml"
-  when: "'south_morang' in group_names"
-
-- name: Load QA-specific vars if in mornington_mitsubishi group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/mornington_mitsubishi.yml"
-  when: "'mornington_mitsubishi' in group_names"
-
-- name: Load QA-specific vars if in peter_dullard group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/peter_dullard.yml"
-  when: "'peter_dullard' in group_names"
-
-- name: Load QA-specific vars if in paul_wakeling group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/paul_wakeling.yml"
-  when: "'paul_wakeling' in group_names"
-
-- name: Load QA-specific vars if in sydney_trucks group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/sydney_trucks.yml"
-  when: "'sydney_trucks' in group_names"
-
-- name: Load QA-specific vars if in peninsula_holden group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/peninsula_holden.yml"
-  when: "'peninsula_holden' in group_names"
-
-- name: Load QA-specific vars if in oz_car group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/oz_car.yml"
-  when: "'oz_car' in group_names"
-
-- name: Load QA-specific vars if in sutherland_isuzu group
-  include_vars:
-    file: "/etc/ansible/inventory/group_vars/sutherland_isuzu.yml"
-  when: "'sutherland_isuzu' in group_names"
-
-- name: Load QA-specific vars if in bega_valley_motors group
+- name: Load customer specific vars if in bega_valley_motors group
   include_vars:
     file: "/etc/ansible/inventory/group_vars/bega_valley_motors.yml"
   when: "'bega_valley_motors' in group_names"
 
-- name: Load QA-specific vars if in murwillumbah_trucks group
+- name: Load customer specific vars if in berwicks_mitsubishi group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/berwicks_mitsubishi.yml"
+  when: "'berwicks_mitsubishi' in group_names"
+
+- name: Load customer specific vars if in brisbane_isuzu group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/brisbane_isuzu.yml"
+  when: "'brisbane_isuzu' in group_names"
+
+- name: Load customer specific vars if in gws_servers group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/gws_servers.yml"
+  when: "'gws_servers' in group_names"
+
+- name: Load customer specific vars if in max_kirwan group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/max_kirwan.yml"
+  when: "'max_kirwan' in group_names"
+
+- name: Load customer specific vars if in mildura_trucks group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/mildura_trucks.yml"
+  when: "'mildura_trucks' in group_names"
+
+- name: Load customer specific vars if in mornington_mitsubishi group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/mornington_mitsubishi.yml"
+  when: "'mornington_mitsubishi' in group_names"
+
+- name: Load customer specific vars if in murwillumbah_trucks group
   include_vars:
     file: "/etc/ansible/inventory/group_vars/murwillumbah_trucks.yml"
   when: "'murwillumbah_trucks' in group_names"
 
-- name: Load QA-specific vars if in sunco_motors group
+- name: Load customer specific vars if in national_capital group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/national_capital.yml"
+  when: "'national_capital' in group_names"
+
+- name: Load customer specific vars if in oz_car group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/oz_car.yml"
+  when: "'oz_car' in group_names"
+
+- name: Load customer specific vars if in paul_wakeling group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/paul_wakeling.yml"
+  when: "'paul_wakeling' in group_names"
+
+- name: Load customer specific vars if in peninsula_holden group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/peninsula_holden.yml"
+  when: "'peninsula_holden' in group_names"
+
+- name: Load customer specific vars if in peter_dullard group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/peter_dullard.yml"
+  when: "'peter_dullard' in group_names"
+
+- name: Load customer specific vars if in south_morang group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/south_morang.yml"
+  when: "'south_morang' in group_names"
+
+- name: Load customer specific vars if in sunco_motors group
   include_vars:
     file: "/etc/ansible/inventory/group_vars/sunco_motors.yml"
   when: "'sunco_motors' in group_names"
 
-- name: Load QA-specific vars if in warwick group
+- name: Load customer specific vars if in sydney_trucks group
   include_vars:
-    file: "/etc/ansible/inventory/group_vars/warwick.yml"
-  when: "'warwick' in group_names"
+    file: "/etc/ansible/inventory/group_vars/sydney_trucks.yml"
+  when: "'sydney_trucks' in group_names"
 
-- name: Load QA-specific vars if in tilford group
+- name: Load customer specific vars if in sutherland_isuzu group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/sutherland_isuzu.yml"
+  when: "'sutherland_isuzu' in group_names"
+
+- name: Load customer specific vars if in tilford group
   include_vars:
     file: "/etc/ansible/inventory/group_vars/tilford.yml"
   when: "'tilford' in group_names"
 
-- name: Load QA-specific vars if in gws_servers group
+- name: Load customer specific vars if in warwick group
   include_vars:
-    file: "/etc/ansible/inventory/group_vars/gws_servers.yml"
-  when: "'gws_servers' in group_names"
+    file: "/etc/ansible/inventory/group_vars/warwick.yml"
+  when: "'warwick' in group_names"
 
 - import_tasks: install_dependecies.yml
 - import_tasks: deploy_jetty_apps.yml

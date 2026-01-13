@@ -1,0 +1,163 @@
+# --------------------------------------- 
+# Module: server
+--module=server
+##
+## Server Threading Configuration
+##
+# minimum number of threads
+#threads.min=10
+jetty.threadPool.minThreads=10
+# maximum number of threads
+#threads.max=200
+jetty.threadPool.maxThreads=200
+# thread idle timeout in milliseconds
+#threads.timeout=60000
+jetty.threadPool.idleTimeout=60000
+# buffer size for output
+#jetty.output.buffer.size=32768
+jetty.httpConfig.outputBufferSize=32768
+# request header buffer size
+#jetty.request.header.size=8192
+jetty.httpConfig.requestBufferSize=8192
+# response header buffer size
+#jetty.response.header.size=8192
+jetty.httpConfig.responseBufferSize=8192
+# should jetty send the server version header?
+#jetty.send.server.version=true
+jetty.httpConfig.sendServerVersion=true
+# should jetty send the date header?
+#jetty.send.date.header=false
+jetty.httpConfig.sendDateHeader=true
+# What host to listen on (leave commented to listen on all interfaces)
+#jetty.host=myhost.com
+# Dump the state of the Jetty server, components, and webapps after startup
+#jetty.dump.start=false
+jetty.httpConfig.dumpAfterStart=false
+# Dump the state of the Jetty server, before stop
+#jetty.dump.stop=false
+jetty.httpConfig.dumpBeforeStop=true
+# Enable delayed dispatch optimisation
+#jetty.delayDispatchUntilContent=false
+jetty.httpConfig.delayDispatchUntilContent=false
+
+
+# --------------------------------------- 
+# Module: http
+--module=http
+### HTTP Connector Configuration
+
+## HTTP port to listen on
+#jetty.http.port=2100 <-- moved to Auto IT section
+
+## HTTP idle timeout in milliseconds
+jetty.http.timeout=30000
+
+## HTTP Socket.soLingerTime in seconds. (-1 to disable)
+# http.soLingerTime=-1
+
+## Parameters to control the number and priority of acceptors and selectors
+# http.selectors=1
+# http.acceptors=1
+# http.selectorPriorityDelta=0
+# http.acceptorPriorityDelta=0
+
+# --------------------------------------- 
+# Module: jndi
+--module=jndi
+
+# --------------------------------------- 
+# Module: jsp
+--module=jsp
+# JSP Configuration
+
+# Select JSP implementation, choices are
+#   glassfish : The reference implementation
+#               default in jetty <= 9.1
+#   apache    : The apache version
+#               default jetty >= 9.2
+jsp-impl=apache
+
+# To use a non-jdk compiler for JSP compilation when using glassfish uncomment next line
+# -Dorg.apache.jasper.compiler.disablejsr199=true
+
+# --------------------------------------- 
+# Module: resources
+--module=resources
+
+# --------------------------------------- 
+# Module: ext
+--module=ext
+
+# --------------------------------------- 
+# Module: jstl
+--module=jstl
+# JSTL Configuration
+# The glassfish jsp-impl includes JSTL by default and this module
+# is not required to activate it.
+# The apache jsp-impl does not include JSTL by default and this module
+# is required to put JSTL on the container classpath
+
+# --------------------------------------- 
+# Module: deploy
+--module=deploy
+## DeployManager configuration
+# Monitored Directory name (relative to jetty.base)
+# jetty.deploy.monitoredDirName=webapps
+
+# --------------------------------------- 
+# Module: websocket
+--module=websocket
+
+# --------------------------------------- 
+# Auto IT Configuration
+# --------------------------------------- 
+jetty.http.port={{ oem.http }}
+# --------------------------------------- 
+# The following settings can be modified if the default is not used.
+# --------------------------------------- 
+## Change the host to the ip address/host name of the PMDS Server
+-Dau.com.autoit.pws.host={{ oem.pmds_hostname }}
+
+## Change the port to the port number that the server process in PMDS is running on. default is 12050
+-Dau.com.autoit.pws.port={{ oem.pmds_port }}
+
+## Change the account to the D3 data account that the PMDS PWS application is running in - normally PMDS-DATA-1
+-Dau.com.autoit.pws.account={{ oem.pmds_data_account }}
+
+## Set the PWS username as defined in PWS Control
+-Dau.com.autoit.pws.userName={{ oem.pmds_username }}
+
+## Set the password for the PWS user	
+-Dau.com.autoit.pws.password={{ oem.pmds_password }}
+
+## PWS app source
+#-Dau.com.autoit.pws.appSource=autoit
+
+## If xml files are to be backed up on the web (jetty) server set this to Y
+#-Dau.com.autoit.pws.createBackup=N
+
+## If createBackup is set to Y, specify the directory to do the backup.
+#-Dau.com.autoit.pws.backupDir=/usr/lib/jetty9.4/pws/logs/backup
+
+## Set to 'Y' to have the xml that is sent to the server printed to std.out
+#-Dau.com.autoit.pws.debugMessages=N
+
+# --------------------------------------- 
+# SSL Configuration
+# --------------------------------------- 
+--module=websocket
+--module=ssl
+--module=https
+
+jetty.ssl.host=0.0.0.0
+jetty.ssl.port={{ oem.https }}
+jetty.sslContext.keyStorePath=etc/keystores/{{ oem.certificate_symlink}}
+jetty.sslContext.trustStorePath=etc/keystores/{{ oem.trust_store_symlink }}
+jetty.sslContext.keyStorePassword={{ oem.certificate_password_obf }}
+jetty.sslContext.keyManagerPassword={{ oem.certificate_password_obf }}
+jetty.sslContext.trustStorePassword={{ oem.trust_store_password_obf }}
+# Enable client certificate authentication. 
+#jetty.sslContext.needClientAuth=true *
+#-Dau.com.autoit.sslHost=pmds.autoapps.cloud:2400 *
+# --------------------------------------- 
+

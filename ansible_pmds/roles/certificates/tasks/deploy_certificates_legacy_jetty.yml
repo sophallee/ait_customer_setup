@@ -1,0 +1,136 @@
+- name: Deploy certificates configuration
+  block:
+
+    - name: Check if keystore directory exists
+      stat:
+        path: /usr/lib/jetty/etc/keystore
+      register: keystore_dir
+
+    - name: Initialise keystore_files
+      set_fact:
+        keystore_files:
+          files: []
+
+    - name: Find keystore files
+      find:
+        paths: /usr/lib/jetty/etc/keystore
+        file_type: file
+      register: keystore_files
+      when: keystore_dir.stat.exists
+
+    - name: Report keystore files
+      debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          keystore_present: "{{ keystore_dir.stat.exists }}"
+          files: "{{ keystore_files.files | map(attribute='path') | list }}"
+
+    - name: List all shell scripts in /usr/lib/jetty
+      find:
+        paths: /usr/lib/jetty
+        patterns: "*.sh"
+        recurse: yes
+      register: jetty_shell_scripts
+    
+    - name: Report found shell scripts
+      debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          shell_scripts: "{{ jetty_shell_scripts.files | map(attribute='path') | list }}"
+
+    - name: Build list of installed OEM instances
+      set_fact:
+        active_oem_instances: >-
+          {{
+            pws_oem_install
+            | dict2items
+            | selectattr('value.install', 'equalto', true)
+            | map(attribute='key')
+            | list
+          }}
+
+    - name: Fetch PWS version page (HTTP)
+      uri:
+        url: "http://127.0.0.1:{{ pws_oem_config[item].http }}"
+        return_content: yes
+      register: pws_http_response
+      loop: "{{ active_oem_instances }}"
+
+    - name: Extract PWS version from version div
+      set_fact:
+        pws_versions: >-
+          {{
+            pws_versions | default({}) | combine({
+              item.item: (
+                item.content
+                | regex_findall('(?s)<div[^>]*class="version"[^>]*>.*?<strong>\s*([^<]+?)\s*</strong>')
+                | first
+                | default('unknown', true)
+              )
+            })
+          }}
+      loop: "{{ pws_http_response.results }}"
+      no_log: true
+
+    - name: Report PWS versions
+      debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          pws_versions: "{{ pws_versions }}"
+
+    - name: Check if HTTPS port is open for OEM instances
+      wait_for:
+        host: 127.0.0.1
+        port: "{{ pws_oem_config[item].https }}"
+        timeout: 5
+      register: https_check
+      ignore_errors: yes
+      loop: "{{ active_oem_instances }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Set HTTPS availability fact
+      set_fact:
+        oem_https_status: >-
+          {{
+            oem_https_status | default({}) | combine({
+              item.item: (item is success)
+            })
+          }}
+      loop: "{{ https_check.results }}"
+
+    - name: Check HTTPS and get cert expiration
+      shell: |
+        echo | openssl s_client -connect 127.0.0.1:{{ pws_oem_config[item].https }} -servername 127.0.0.1 2>/dev/null \
+          | openssl x509 -noout -enddate
+      register: ssl_exp
+      failed_when: false
+      loop: "{{ active_oem_instances }}"
+      loop_control:
+        label: "{{ item }}"
+    
+    - name: Set SSL expiration fact
+      set_fact:
+        oem_ssl_expiration: >-
+          {{
+            oem_ssl_expiration | default({}) | combine({
+              item.item: (item.stdout | default('none'))
+            })
+          }}
+      loop: "{{ ssl_exp.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+    
+    - name: Report HTTPS status and SSL expiration
+      debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          https_status: >-
+            {{
+              dict(
+                active_oem_instances | zip(ssl_exp.results | map(attribute='stdout') | map('bool'))
+              )
+            }}
+          ssl_expiration: "{{ oem_ssl_expiration }}"
+
+  when: "'webapps_oem_nodes' in group_names"

@@ -1,0 +1,57 @@
+cat << EOD > data.xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+                   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+   <SOAP-ENV:Header>
+      <payloadManifest xmlns="http://www.starstandards.org/webservices/2009/transport">
+         <manifest contentID="1"
+                   element="GetVehicleServiceHistory"
+                   namespaceURI="http://www.starstandard.org/STAR/5"/>
+      </payloadManifest>
+   </SOAP-ENV:Header>
+   <SOAP-ENV:Body>
+      <tran:ProcessMessage xmlns:tran="http://www.starstandards.org/webservices/2009/transport">
+         <tran:payload>
+            <tran:content id="1">
+               <star:GetVehicleServiceHistory xmlns:star="http://www.starstandard.org/STAR/5"
+                                              xmlns:oagis="http://www.openapplications.org/oagis/9"
+                                              releaseID="5.5.4"
+                                              systemEnvironmentCode="Production"
+                                              versionID="1.0">
+                  <star:ApplicationArea>
+                     <star:Sender>
+                        <star:TaskID>HMCA_GET_RECALL_CAMPAIGN</star:TaskID>
+                        <star:CreatorNameCode>Auto-IT</star:CreatorNameCode>
+                        <star:SenderNameCode>PMDS</star:SenderNameCode>
+                        <star:SystemVersion>R7.0</star:SystemVersion>
+                     </star:Sender>
+                     <star:CreationDateTime>2024-06-05T15:05:46.000+10:00</star:CreationDateTime>
+                     <star:Destination>
+                        <star:DestinationNameCode>H701</star:DestinationNameCode>
+                        <star:DealerNumberID>DEALER_CODE_ID</star:DealerNumberID>
+                     </star:Destination>
+                  </star:ApplicationArea>
+                  <star:GetVehicleServiceHistoryRetrievalDataArea>
+                     <star:Get>
+                        <oagis:Expression expressionLanguage="en">en</oagis:Expression>
+                     </star:Get>
+                     <star:VehicleServiceHistoryRetrieval>
+                        <star:VehicleServiceHistoryRetrievalHeader>
+                           <star:DocumentIdentificationGroup>
+                              <star:DocumentIdentification>
+                                 <star:DocumentID>KMHH351ELJU035885</star:DocumentID>
+                              </star:DocumentIdentification>
+                           </star:DocumentIdentificationGroup>
+                        </star:VehicleServiceHistoryRetrievalHeader>
+                     </star:VehicleServiceHistoryRetrieval>
+                  </star:GetVehicleServiceHistoryRetrievalDataArea>
+               </star:GetVehicleServiceHistory>
+            </tran:content>
+         </tran:payload>
+      </tran:ProcessMessage>
+   </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+EOD

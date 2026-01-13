@@ -5,6 +5,7 @@
     customer_groups:
       - bega_valley_motors
       - berwicks_mitsubishi
+      - brisbane_isuzu
       - col_crawford
       - davison
       - fnq_hub
@@ -29,6 +30,8 @@
       - tilford
       - warwick
       - westpoint
+  vars_files:
+    - /etc/ansible/secure_vars/webapps_vault.yml        
   become: true
   roles:
     - gather_facts
