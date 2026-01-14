@@ -1,8 +1,10 @@
 ---
-- name: Copy ansible_all_linux.txt
-  copy:
-    src: ansible_all_linux.txt
-    dest: /home/autoit/ansible_all_linux.txt
-    owner: pick
-    group: pick
-    mode: '0644'
+- name: Load customer specific vars if in brisbane_isuzu group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/brisbane_isuzu.yml"
+  when: "'brisbane_isuzu' in group_names"
+
+- name: Ensure tree is installed
+  package:
+    name: tree
+    state: present

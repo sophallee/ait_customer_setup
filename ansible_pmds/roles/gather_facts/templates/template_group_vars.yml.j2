@@ -10,6 +10,7 @@ oem_ip: "{{ oem_ip }}"
 # PMDS default configuration
 pmds_instances:
 {% if pmds_host and pmds_short_hostname %}
+{% raw %}
   pmds_account_1:
     hostname: "{{ pmds_host }}"
     server_port: 12050
@@ -22,6 +23,7 @@ pmds_instances:
     data_account: "PMDS-DATA-2"
     pws_username: "PWS2"
     pws_passwd: "{{ pmds_password[pmds_short_hostname].data_account_2.pws_password | default('CHANGE_ME') }}"
+{% endraw %}    
 {% else %}
   # No PMDS host configured
 {% endif %}

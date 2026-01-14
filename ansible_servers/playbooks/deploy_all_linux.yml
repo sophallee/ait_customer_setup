@@ -1,5 +1,36 @@
 ---
-- hosts: all_linux_servers
+- hosts: all_linux_nodes
+  vars:
+    customer_groups:
+      - bega_valley_motors
+      - berwicks_mitsubishi
+      - brisbane_isuzu
+      - col_crawford
+      - davison
+      - fnq_hub
+      - gws_servers
+      - jackson_ford
+      - ken_casson
+      - max_kirwan
+      - mildura_trucks
+      - moorooka_nissan
+      - mornington_mitsubishi
+      - murwillumbah_trucks
+      - national_capital
+      - oz_car
+      - paul_wakeling
+      - peninsula_holden
+      - peter_dullard
+      - ross_gray
+      - south_morang
+      - sunco_motors
+      - sutherland_isuzu
+      - sydney_trucks
+      - tilford
+      - warwick
+      - westpoint
+  vars_files:
+    - /etc/ansible/secure_vars/webapps_vault.yml        
   become: true
   roles:
     - linux_servers

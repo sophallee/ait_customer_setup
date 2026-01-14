@@ -1,0 +1,24 @@
+---
+- name: Gather backup config information as facts
+  block:
+
+    - name: Check if /home/backup exists on nodes
+      ansible.builtin.stat:
+        path: /home/backup
+      register: backup_dir
+
+    - name: Tree view of /home/backup on nodes
+      ansible.builtin.command: tree /home/backup
+      register: backup_tree
+      changed_when: false
+      failed_when: false
+      when:
+        - backup_dir.stat.exists
+        - backup_dir.stat.isdir
+
+    - name: Report /home/backup tree
+      ansible.builtin.debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          backup_tree: "{{ backup_tree.stdout_lines | default([]) }}"
+
