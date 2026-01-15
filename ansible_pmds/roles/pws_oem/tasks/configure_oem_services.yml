@@ -1,0 +1,71 @@
+
+- name: System setup and configuration
+  block:
+  
+  - name: Build list of installed OEM instances
+    ansible.builtin.set_fact:
+      oem_installed_instances: >-
+        {{
+          pws_oem_install
+          | dict2items
+          | selectattr('value.install', 'equalto', true)
+          | list
+        }}
+
+  - name: Render systemd service for each PWS instance
+    ansible.builtin.template:
+      src: ai_pws.service.j2
+      dest: "/etc/systemd/system/oem_{{ pws_oem_config[item.key].app_name }}.service"
+      owner: root
+      group: root
+      mode: '0644'
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    vars:
+      oem: "{{ pws_oem_config[item.key] }}"
+    become: true
+    no_log: true
+
+  - name: Reload systemd daemon
+    ansible.builtin.systemd:
+      daemon_reload: yes
+    become: true
+  
+  - name: Start PWS services (if activated)
+    ansible.builtin.systemd:
+      name: "oem_{{ pws_oem_config[item.key].app_name }}.service"
+      state: restarted
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    when: item.value.systemd_activate | default(false) | bool
+    become: true
+    no_log: true
+  
+  - name: Enable PWS services at boot (if enabled)
+    ansible.builtin.systemd:
+      name: "oem_{{ pws_oem_config[item.key].app_name }}.service"
+      enabled: yes
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    when: item.value.systemd_enable | default(false) | bool
+    become: true
+    no_log: true
+  
+  - name: Open firewall for OEM PWS HTTPS port
+    ansible.posix.firewalld:
+      port: "{{ pws_oem_config[item.key].https }}/tcp"
+      permanent: true
+      state: enabled
+      immediate: true
+    loop: "{{ oem_installed_instances }}"
+    loop_control:
+      label: "{{ item.key }}"
+    when: item.value.systemd_enable | default(false) | bool
+    become: true
+    no_log: true
+
+  when: "'webapps_oem_nodes' in group_names"
+  # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block

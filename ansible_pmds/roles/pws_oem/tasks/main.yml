@@ -98,4 +98,5 @@
 - import_tasks: deploy_jetty_apps.yml
 - import_tasks: obfuscate_passwords.yml
 - import_tasks: configure_oem_apps.yml
+- import_tasks: configure_oem_services.yml
 - import_tasks: deploy_test_apps.yml

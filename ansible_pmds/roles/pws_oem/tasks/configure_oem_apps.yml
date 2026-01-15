@@ -129,7 +129,7 @@
       dest: "{{ jetty_apps_keystore_path }}/{{ pws_oem_config[item.key].certificate_jks }}"
       owner: "{{ jetty_user }}"
       group: "{{ jetty_group }}"
-      mode: '0640'
+      mode: '0644'
     loop: "{{ oem_installed_instances }}"
     loop_control:
       label: "{{ item.key }}"
