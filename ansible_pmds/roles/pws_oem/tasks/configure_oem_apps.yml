@@ -239,16 +239,16 @@
       daemon_reload: yes
     become: true
   
-  - name: Start PWS services (if activated)
-    ansible.builtin.systemd:
-      name: "oem_{{ pws_oem_config[item.key].app_name }}.service"
-      state: restarted
-    loop: "{{ oem_installed_instances }}"
-    loop_control:
-      label: "{{ item.key }}"
-    when: item.value.systemd_activate | default(false) | bool
-    become: true
-    no_log: true
+  #- name: Start PWS services (if activated)
+  #  ansible.builtin.systemd:
+  #    name: "oem_{{ pws_oem_config[item.key].app_name }}.service"
+  #    state: restarted
+  #  loop: "{{ oem_installed_instances }}"
+  #  loop_control:
+  #    label: "{{ item.key }}"
+  #  when: item.value.systemd_activate | default(false) | bool
+  #  become: true
+  #  no_log: true
   
   - name: Enable PWS services at boot (if enabled)
     ansible.builtin.systemd:

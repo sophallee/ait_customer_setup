@@ -1,0 +1,127 @@
+
+- name: Disable Jetty configuration (Web desktop daemon running on shared web server)
+  block:
+  - name: Check if ai_pmdsweb1 is active
+    ansible.builtin.command: systemctl is-active --quiet ai_pmdsweb1.service
+    register: service_status
+    failed_when: false
+    changed_when: false
+
+  - name: Comment out the maintenance line if service is running
+    ansible.builtin.replace:
+      path: /var/spool/cron/pick  # Adjust path based on your OS (e.g., /var/spool/cron/root)
+      regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
+      replace: '#\1'
+    when: service_status.rc == 0
+
+  - name: Comment out the maintenance line if service is running
+    ansible.builtin.replace:
+      path: /var/spool/cron/autoit  # Adjust path based on your OS (e.g., /var/spool/cron/root)
+      regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
+      replace: '#\1'
+    when: service_status.rc == 0
+
+  - name: Determine owner of /usr/lib/jetty/stop.sh
+    ansible.builtin.stat:
+      path: /usr/lib/jetty/stop.sh
+    register: stop_sh_stat
+    become: true
+
+  - name: Set variables for script owner and group
+    ansible.builtin.set_fact:
+      jetty_script_user: "{{ stop_sh_stat.stat.pw_name }}"
+      jetty_script_group: "{{ stop_sh_stat.stat.gr_name }}"
+    when: stop_sh_stat.stat.exists
+
+  - name: Stop Jetty as the correct user
+    ansible.builtin.command: /usr/lib/jetty/stop.sh
+    become: true
+    become_user: "{{ jetty_script_user }}"
+    when:
+      - service_status.rc == 0
+      - stop_sh_stat.stat.exists
+
+  - name: Ensure disabled directory exists with proper ownership
+    ansible.builtin.file:
+      path: /usr/lib/jetty/aiinst/disabled
+      state: directory
+      owner: "{{ jetty_script_user }}"
+      group: "{{ jetty_script_group }}"
+      mode: '0755'
+    become: true
+    when:
+      - service_status.rc == 0
+      - stop_sh_stat.stat.exists
+
+  - name: Move start*.sh and stop*.sh scripts to disabled directory
+    ansible.builtin.shell: |
+      mv /usr/lib/jetty/start*.sh /usr/lib/jetty/stop*.sh /usr/lib/jetty/aiinst/disabled/ 2>/dev/null || true
+    args:
+      executable: /bin/bash
+    become: true
+    when:
+      - service_status.rc == 0
+      - stop_sh_stat.stat.exists
+
+  when: 
+    - "'webapps_oem_nodes' in group_names"
+    - inventory_hostname is regex('^(webapps|pmds)')
+  # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block
+
+- name: Disable Jetty configuration (dedicated OEM server)
+  block:
+  - name: Comment out the maintenance line if service is running
+    ansible.builtin.replace:
+      path: /var/spool/cron/pick  # Adjust path based on your OS (e.g., /var/spool/cron/root)
+      regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
+      replace: '#\1'
+
+  - name: Comment out the maintenance line if service is running
+    ansible.builtin.replace:
+      path: /var/spool/cron/autoit  # Adjust path based on your OS (e.g., /var/spool/cron/root)
+      regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
+      replace: '#\1'
+
+  - name: Determine owner of /usr/lib/jetty/stop.sh
+    ansible.builtin.stat:
+      path: /usr/lib/jetty/stop.sh
+    register: stop_sh_stat
+    become: true
+
+  - name: Set variables for script owner and group
+    ansible.builtin.set_fact:
+      jetty_script_user: "{{ stop_sh_stat.stat.pw_name }}"
+      jetty_script_group: "{{ stop_sh_stat.stat.gr_name }}"
+    when: stop_sh_stat.stat.exists
+
+  - name: Stop Jetty as the correct user
+    ansible.builtin.command: /usr/lib/jetty/stop.sh
+    become: true
+    become_user: "{{ jetty_script_user }}"
+    when:
+      - stop_sh_stat.stat.exists
+
+  - name: Ensure disabled directory exists with proper ownership
+    ansible.builtin.file:
+      path: /usr/lib/jetty/aiinst/disabled
+      state: directory
+      owner: "{{ jetty_script_user }}"
+      group: "{{ jetty_script_group }}"
+      mode: '0755'
+    become: true
+    when:
+      - stop_sh_stat.stat.exists
+
+  - name: Move start*.sh and stop*.sh scripts to disabled directory
+    ansible.builtin.shell: |
+      mv /usr/lib/jetty/start*.sh /usr/lib/jetty/stop*.sh /usr/lib/jetty/aiinst/disabled/ 2>/dev/null || true
+    args:
+      executable: /bin/bash
+    become: true
+    when:
+      - stop_sh_stat.stat.exists
+
+  when: 
+    - "'webapps_oem_nodes' in group_names"
+    - inventory_hostname is match('^oem-.*')
+  # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block
