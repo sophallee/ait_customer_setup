@@ -70,19 +70,19 @@
 
 - name: Disable Jetty configuration (dedicated OEM server)
   block:
-  - name: Comment out the maintenance line if service is running
+  - name: Comment out the maintenance line if service is running (dedicated OEM server)
     ansible.builtin.replace:
       path: /var/spool/cron/pick  # Adjust path based on your OS (e.g., /var/spool/cron/root)
       regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
       replace: '#\1'
 
-  - name: Comment out the maintenance line if service is running
+  - name: Comment out the maintenance line if service is running (dedicated OEM server)
     ansible.builtin.replace:
       path: /var/spool/cron/autoit  # Adjust path based on your OS (e.g., /var/spool/cron/root)
       regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
       replace: '#\1'
 
-  - name: Determine owner of /usr/lib/jetty/stop.sh
+  - name: Determine owner of /usr/lib/jetty/stop.sh 
     ansible.builtin.stat:
       path: /usr/lib/jetty/stop.sh
     register: stop_sh_stat
