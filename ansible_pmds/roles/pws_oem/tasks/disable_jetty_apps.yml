@@ -7,19 +7,33 @@
     failed_when: false
     changed_when: false
 
-  - name: Comment out the maintenance line if service is running
+  - name: Check if pick cron file exists
+    ansible.builtin.stat:
+      path: /var/spool/cron/pick
+    register: pick_cron_file
+
+  - name: Check if auoit cron file exists
+    ansible.builtin.stat:
+      path: /var/spool/cron/autoit
+    register: autoit_cron_file   
+
+  - name: Comment out the /usr/lib/jetty/start.sh line if service is running (pick)
     ansible.builtin.replace:
       path: /var/spool/cron/pick  # Adjust path based on your OS (e.g., /var/spool/cron/root)
       regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
       replace: '#\1'
-    when: service_status.rc == 0
+    when: 
+      - service_status.rc == 0
+      - pick_cron_file.stat.exists
 
-  - name: Comment out the maintenance line if service is running
+  - name: Comment out the /usr/lib/jetty/start.sh if service is running (autoit)
     ansible.builtin.replace:
       path: /var/spool/cron/autoit  # Adjust path based on your OS (e.g., /var/spool/cron/root)
       regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
       replace: '#\1'
-    when: service_status.rc == 0
+    when: 
+      - service_status.rc == 0
+      - autoit_cron_file.stat.exists
 
   - name: Determine owner of /usr/lib/jetty/stop.sh
     ansible.builtin.stat:
@@ -70,17 +84,30 @@
 
 - name: Disable Jetty configuration (dedicated OEM server)
   block:
-  - name: Comment out the maintenance line if service is running (dedicated OEM server)
+
+  - name: Check if cron file exists
+    ansible.builtin.stat:
+      path: /var/spool/cron/pick
+    register: pick_cron_file
+    
+  - name: Check if cron file exists
+    ansible.builtin.stat:
+      path: /var/spool/cron/autoit
+    register: autoit_cron_file    
+
+  - name: Comment out the /usr/lib/jetty/start.sh if service is running (pick on dedicated OEM server)
     ansible.builtin.replace:
       path: /var/spool/cron/pick  # Adjust path based on your OS (e.g., /var/spool/cron/root)
       regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
       replace: '#\1'
+    when: pick_cron_file.stat.exists
 
-  - name: Comment out the maintenance line if service is running (dedicated OEM server)
+  - name: Comment out the /usr/lib/jetty/start.sh if service is running (autoit on dedicated OEM server)
     ansible.builtin.replace:
       path: /var/spool/cron/autoit  # Adjust path based on your OS (e.g., /var/spool/cron/root)
       regexp: '^(@reboot\s+/usr/lib/jetty/start.sh)'
       replace: '#\1'
+    when: autoit_cron_file.stat.exists
 
   - name: Determine owner of /usr/lib/jetty/stop.sh 
     ansible.builtin.stat:
