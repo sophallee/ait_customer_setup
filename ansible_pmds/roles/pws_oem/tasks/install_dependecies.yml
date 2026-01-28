@@ -3,7 +3,7 @@
 # Install dependencies for the PWS OEM application
 # ----------------------------
 - name: Deploy Package Depencies and Jetty 
-  block:
+  block:  
   - name: Install required system packages for Jetty
     package:
       name:

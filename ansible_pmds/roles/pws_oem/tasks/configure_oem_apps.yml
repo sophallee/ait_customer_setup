@@ -261,18 +261,18 @@
     become: true
     no_log: true
   
-  - name: Open firewall for OEM PWS HTTPS port
-    ansible.posix.firewalld:
-      port: "{{ pws_oem_config[item.key].https }}/tcp"
-      permanent: true
-      state: enabled
-      immediate: true
-    loop: "{{ oem_installed_instances }}"
-    loop_control:
-      label: "{{ item.key }}"
-    when: item.value.systemd_enable | default(false) | bool
-    become: true
-    no_log: true
+#  - name: Open firewall for OEM PWS HTTPS port
+#    ansible.posix.firewalld:
+#      port: "{{ pws_oem_config[item.key].https }}/tcp"
+#      permanent: true
+#      state: enabled
+#      immediate: true
+#    loop: "{{ oem_installed_instances }}"
+#    loop_control:
+#      label: "{{ item.key }}"
+#    when: item.value.systemd_enable | default(false) | bool
+#    become: true
+#    no_log: true
 
   when: "'webapps_oem_nodes' in group_names"
   # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block

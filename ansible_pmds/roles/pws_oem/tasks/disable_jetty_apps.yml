@@ -80,6 +80,7 @@
   when: 
     - "'webapps_oem_nodes' in group_names"
     - inventory_hostname is regex('^(webapps|pmds)')
+    - "'disabled' not in group_names"
   # Change to 'webapps_oem_nodes' when ready or set to 'disabled' to skip this block
 
 - name: Disable Jetty configuration (dedicated OEM server)

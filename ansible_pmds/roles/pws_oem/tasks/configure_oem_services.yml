@@ -53,6 +53,12 @@
     when: item.value.systemd_enable | default(false) | bool
     become: true
     no_log: true
+
+  - name: Check if firewalld command exists
+    ansible.builtin.command: firewall-cmd --state
+    register: firewalld_state
+    failed_when: false
+    changed_when: false
   
   - name: Open firewall for OEM PWS HTTPS port
     ansible.posix.firewalld:
@@ -63,7 +69,9 @@
     loop: "{{ oem_installed_instances }}"
     loop_control:
       label: "{{ item.key }}"
-    when: item.value.systemd_enable | default(false) | bool
+    when:
+      - item.value.systemd_enable | default(false) | bool
+      - firewalld_state.rc == 0
     become: true
     no_log: true
 
