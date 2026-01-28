@@ -3,8 +3,14 @@
   include_vars:
     file: "/etc/ansible/inventory/group_vars/brisbane_isuzu.yml"
   when: "'brisbane_isuzu' in group_names"
-  
-#- import_tasks: gather_facts.yml
-#- import_tasks: generate_group_vars.yml
-#- import_tasks: gather_facts_oem_nodes.yml
+
+- import_tasks: gather_general_facts.yml
+  tags: [general_facts,all]
+- import_tasks: generate_inventory_files.yml
+  tags: [generate_inventory_files,all]
+- import_tasks: gather_facts_oem_nodes.yml
+  tags: [oem_facts,all]
 - import_tasks: gather_facts_backup_config.yml
+  tags: [backup_facts,all]
+- import_tasks: gather_facts_requst_logs.yml
+  tags: [request_logs_facts,all]
