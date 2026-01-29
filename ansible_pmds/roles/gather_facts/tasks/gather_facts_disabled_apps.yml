@@ -1,0 +1,79 @@
+# -------------------------
+# Cron jobs and Jetty scripts tasks
+# -------------------------
+---
+- name: Check and display cron content
+  block:
+    - name: Check for /var/spool/cron/pick
+      stat:
+        path: /var/spool/cron/pick
+      register: pick_check
+
+    - name: Display pick content if exists
+      block:
+        - name: Read pick content
+          command: cat /var/spool/cron/pick
+          register: pick_content
+          changed_when: false
+        
+        - name: Print pick content
+          debug:
+            msg: "{{ pick_content.stdout.split('\n') }}"
+      when: pick_check.stat.exists
+
+    - name: Check for /var/spool/cron/autoit if pick doesn't exist
+      block:
+        - name: Check for autoit
+          stat:
+            path: /var/spool/cron/autoit
+          register: autoit_check
+
+        - name: Display autoit content if exists
+          block:
+            - name: Read autoit content
+              command: cat /var/spool/cron/autoit
+              register: autoit_content
+              changed_when: false
+            
+            - name: Print autoit content
+              debug:
+                msg: "{{ autoit_content.stdout.split('\n') }}"
+          when: autoit_check.stat.exists
+
+        - name: Display not found message if neither exists
+          debug:
+            msg: "crontab not found"
+          when: not autoit_check.stat.exists
+      when: not pick_check.stat.exists
+
+- name: List start*.sh and stop*.sh scripts in /usr/lib/jetty
+  ansible.builtin.find:
+    paths: /usr/lib/jetty
+    patterns: "start*.sh"
+    file_type: file
+  register: start_scripts
+
+- name: List stop*.sh scripts in /usr/lib/jetty
+  ansible.builtin.find:
+    paths: /usr/lib/jetty
+    patterns: "stop*.sh"
+    file_type: file
+  register: stop_scripts
+
+- name: Display Jetty scripts found
+  ansible.builtin.debug:
+    msg: >-
+      {% if start_scripts.files or stop_scripts.files %}
+        {% if start_scripts.files %}
+          Start scripts: {{ start_scripts.files | map(attribute='path') | list }}
+        {% else %}
+          No start scripts found
+        {% endif %}
+        {% if stop_scripts.files %}
+          Stop scripts: {{ stop_scripts.files | map(attribute='path') | list }}
+        {% else %}
+          No stop scripts found
+        {% endif %}
+      {% else %}
+        No start/stop scripts found in /usr/lib/jetty
+      {% endif %}

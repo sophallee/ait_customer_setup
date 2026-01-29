@@ -14,3 +14,5 @@
   tags: [backup_facts,all]
 - import_tasks: gather_facts_requst_logs.yml
   tags: [request_logs_facts,all]
+- import_tasks: gather_facts_disabled_apps.yml
+  tags: [disabled_apps,all]
