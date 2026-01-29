@@ -1,0 +1,57 @@
+# -------------------------
+# OEM request logs tasks
+# -------------------------
+---
+- name: Find all OEM folders
+  ansible.builtin.find:
+    paths: /opt/jetty/jetty-apps/
+    file_type: directory
+    patterns: "oem_*"
+    recurse: no
+  register: oem_folders
+
+- name: Gather and filter OEM request logs
+  vars:
+    folder: "{{ item.path }}"
+  ansible.builtin.shell: |
+    {% if 'latest_log' in ansible_run_tags %}
+      LOG=$(ls -1t "{{ folder }}/logs/"*.request.log 2>/dev/null | head -n 1)
+      if [ -n "$LOG" ]; then
+        echo "===== HOST: {{ inventory_hostname }} ====="
+        echo "===== OEM Folder: {{ folder }} ====="
+        echo "Log file: $LOG"
+        grep -viE 'zabbix|0:0:0:0:0:0:0:1|localhost|127\.0\.0\.1' "$LOG" || true
+      else
+        echo "===== HOST: {{ inventory_hostname }} ====="
+        echo "===== OEM Folder: {{ folder }} ====="
+        echo "No request log found"
+      fi
+    {% else %}
+      for LOG in $(ls -1 "{{ folder }}/logs/"*.request.log 2>/dev/null); do
+        echo "===== HOST: {{ inventory_hostname }} ====="
+        echo "===== OEM Folder: {{ folder }} ====="
+        echo "Log file: $LOG"
+        grep -viE 'zabbix|0:0:0:0:0:0:0:1|localhost|127\.0\.0\.1' "$LOG" || true
+      done
+    {% endif %}
+  args:
+    executable: /bin/bash
+  register: oem_request_logs_filtered
+  changed_when: false
+  loop: "{{ oem_folders.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Save OEM request logs to a per-host file on localhost
+  ansible.builtin.copy:
+    dest: "/tmp/oem_request_logs_{{ inventory_hostname }}.log"
+    content: |
+      {% for r in oem_request_logs_filtered.results %}
+      {{ r.stdout }}
+      {% endfor %}
+  delegate_to: localhost
+
+- name: Show path to saved OEM logs for this host
+  ansible.builtin.debug:
+    msg: "OEM request logs for {{ inventory_hostname }} written to /tmp/oem_request_logs_{{ inventory_hostname }}.log on localhost"
+  delegate_to: localhost
