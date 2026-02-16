@@ -81,7 +81,20 @@
       dest: "{{ jetty_home_dir }}"
       state: link
       force: true
-     
+
+  - name: Copy gd_bundle-g2.crt to anchors
+    copy:
+      src: files/gd_bundle-g2.crt   # relative to your playbook or role 'files/' dir
+      dest: /etc/pki/ca-trust/source/anchors/gd_bundle-g2.crt
+      owner: root
+      group: root
+      mode: '0644'
+
+  - name: Update CA trust store
+    command: update-ca-trust extract
+    args:
+      creates: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+
   # ----------------------------
   # Clean up tasks
   # ----------------------------  

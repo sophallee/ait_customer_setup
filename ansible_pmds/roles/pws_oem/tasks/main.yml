@@ -1,4 +1,9 @@
 ---
+- name: Load customer specific vars if in atchison_trucks group
+  include_vars:
+    file: "/etc/ansible/inventory/group_vars/atchison_trucks.yml"
+  when: "'atchison_trucks' in group_names"
+
 - name: Load customer specific vars if in bega_valley_motors group
   include_vars:
     file: "/etc/ansible/inventory/group_vars/bega_valley_motors.yml"
